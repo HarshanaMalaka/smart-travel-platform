@@ -1,0 +1,57 @@
+package com.travel.payment_service.controller;
+
+import com.travel.payment_service.dto.PaymentRequest;
+import com.travel.payment_service.dto.PaymentResponse;
+import com.travel.payment_service.service.PaymentService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+public class PaymentController {
+    
+    private final PaymentService paymentService;
+    
+    @PostMapping("/process")
+    public ResponseEntity<PaymentResponse> processPayment(
+            @RequestBody PaymentRequest request) {
+        PaymentResponse response = paymentService.processPayment(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<PaymentResponse> getPaymentById(@PathVariable Long id) {
+        PaymentResponse payment = paymentService.getPaymentById(id);
+        return ResponseEntity.ok(payment);
+    }
+    
+    @GetMapping("/booking/{bookingId}")
+    public ResponseEntity<List<PaymentResponse>> getPaymentsByBookingId(
+            @PathVariable Long bookingId) {
+        List<PaymentResponse> payments = paymentService.getPaymentsByBookingId(bookingId);
+        return ResponseEntity.ok(payments);
+    }
+    
+    @GetMapping("/transaction/{transactionId}")
+    public ResponseEntity<PaymentResponse> getPaymentByTransactionId(
+            @PathVariable String transactionId) {
+        PaymentResponse payment = paymentService.getPaymentByTransactionId(transactionId);
+        return ResponseEntity.ok(payment);
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<PaymentResponse>> getAllPayments() {
+        List<PaymentResponse> payments = paymentService.getAllPayments();
+        return ResponseEntity.ok(payments);
+    }
+    
+    @GetMapping("/health")
+    public ResponseEntity<String> healthCheck() {
+        return ResponseEntity.ok("Payment Service is running");
+    }
+}
