@@ -2,6 +2,7 @@ package com.travel.payment_service.service;
 
 import com.travel.payment_service.dto.PaymentRequest;
 import com.travel.payment_service.dto.PaymentResponse;
+import com.travel.payment_service.dto.PaymentUpdateRequest;
 import com.travel.payment_service.entity.Payment;
 import com.travel.payment_service.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -105,6 +106,68 @@ public class PaymentService {
         return paymentRepository.findAll().stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
+    }
+    
+    public PaymentResponse updatePayment(Long id, PaymentUpdateRequest request) {
+        log.info("Updating payment ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+        
+        // Only allow updates for COMPLETED or PENDING payments
+        if ("REFUNDED".equals(payment.getStatus()) || "CANCELLED".equals(payment.getStatus())) {
+            throw new RuntimeException("Cannot update payment with status: " + payment.getStatus());
+        }
+        
+        // Update amount if provided
+        if (request.getAmount() != null) {
+            payment.setAmount(request.getAmount());
+            log.info("Payment amount updated to: {}", request.getAmount());
+        }
+        
+        // Update payment method if provided
+        if (request.getPaymentMethod() != null) {
+            payment.setPaymentMethod(request.getPaymentMethod());
+            log.info("Payment method updated to: {}", request.getPaymentMethod());
+        }
+        
+        Payment updatedPayment = paymentRepository.save(payment);
+        log.info("Payment {} updated successfully", id);
+        
+        return convertToDTO(updatedPayment);
+    }
+    
+    public PaymentResponse refundPayment(Long id) {
+        log.info("Processing refund for payment ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+        
+        // Only allow refunds for COMPLETED payments
+        if (!"COMPLETED".equals(payment.getStatus())) {
+            throw new RuntimeException("Can only refund COMPLETED payments. Current status: " + payment.getStatus());
+        }
+        
+        if ("REFUNDED".equals(payment.getStatus())) {
+            throw new RuntimeException("Payment already refunded");
+        }
+        
+        payment.setStatus("REFUNDED");
+        Payment refundedPayment = paymentRepository.save(payment);
+        
+        log.info("Payment {} refunded successfully", id);
+        
+        return convertToDTO(refundedPayment);
+    }
+    
+    public void deletePayment(Long id) {
+        log.info("Deleting payment ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Payment not found with id: " + id));
+        
+        paymentRepository.delete(payment);
+        log.info("Payment {} deleted successfully", id);
     }
     
     private PaymentResponse convertToDTO(Payment payment) {

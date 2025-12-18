@@ -97,7 +97,7 @@ public class BookingService {
             
             WebClient webClient = webClientBuilder.build();
             webClient.post()
-                .uri("http://localhost:8085/api/payments/process")
+                .uri("http://localhost:8085/api/payments")
                 .bodyValue(paymentRequest)
                 .retrieve()
                 .bodyToMono(String.class)

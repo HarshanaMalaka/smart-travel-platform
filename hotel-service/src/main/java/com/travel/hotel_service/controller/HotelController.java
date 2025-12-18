@@ -64,8 +64,8 @@ public class HotelController {
     }
     
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteHotel(@PathVariable Long id) {
+    public ResponseEntity<String> deleteHotel(@PathVariable Long id) {
         hotelService.deleteHotel(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Hotel deleted successfully");
     }
 }
