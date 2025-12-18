@@ -17,6 +17,72 @@ This project follows a **microservices architecture** with 6 independent service
 - **WebClient**: Reactive HTTP client for async operations (user validation, payments, notifications)
 - **Feign Client**: Declarative HTTP client for synchronous service calls (flight/hotel availability)
 
+### Communication Flow
+
+When a user creates a booking, the following step-by-step communication occurs between services:
+
+#### **Booking Creation Flow:**
+
+**1. Client Request**
+   - Client sends: `POST /api/bookings` → **Booking Service** (Port 8087)
+   - Request includes: userId, flightId, hotelId, travelDate
+
+**2. User Validation (Synchronous)**
+   - **Booking Service** → **User Service** (Port 8082)
+   - Method: `GET /api/users/{id}` via **WebClient** (blocking call)
+   - User Service validates and returns: UserDTO (name, email, active status)
+   - If user is invalid/inactive, booking fails immediately
+
+**3. Flight Availability Check (Synchronous)**
+   - **Booking Service** → **Flight Service** (Port 8083)
+   - Method: `GET /api/flights/{id}/availability` via **Feign Client** (blocking call)
+   - Flight Service returns: FlightDTO (availability status, price, flight details)
+   - If flight unavailable, booking fails immediately
+
+**4. Hotel Availability Check (Synchronous)**
+   - **Booking Service** → **Hotel Service** (Port 8084)
+   - Method: `GET /api/hotels/{id}/availability` via **Feign Client** (blocking call)
+   - Hotel Service returns: HotelDTO (availability status, price per night, hotel details)
+   - If hotel unavailable, booking fails immediately
+
+**5. Cost Calculation & Booking Creation**
+   - **Booking Service** calculates: Total Cost = Flight Price + Hotel Price
+   - Creates booking record in database with status: `PENDING`
+   - Saves: bookingId, userId, flightId, hotelId, travelDate, totalCost, createdAt
+
+**6. Payment Processing (Asynchronous)**
+   - **Booking Service** → **Payment Service** (Port 8085)
+   - Method: `POST /api/payments` via **WebClient** (non-blocking, fire-and-forget)
+   - Sends: PaymentRequest (bookingId, amount, paymentMethod)
+   - Payment Service processes in background, doesn't block booking response
+
+**7. Notification Sending (Asynchronous)**
+   - **Booking Service** → **Notification Service** (Port 8086)
+   - Method: `POST /api/notifications/send` via **WebClient** (non-blocking, fire-and-forget)
+   - Sends: NotificationRequest (email, message, notification type)
+   - Notification Service sends email in background
+
+**8. Response to Client**
+   - **Booking Service** → Client
+   - Returns: BookingResponse (bookingId, status: PENDING, totalCost, timestamps)
+   - Client receives response while payment and notification continue in background
+
+**Key Communication Patterns:**
+
+1. **Synchronous Calls (Feign Client)**:
+   - Flight availability check - Blocks until response received
+   - Hotel availability check - Blocks until response received
+   - Used when immediate response is required for business logic
+
+2. **Synchronous Calls (WebClient)**:
+   - User validation - Blocks to ensure user exists and is active
+   - Critical for booking creation flow
+
+3. **Asynchronous Calls (WebClient)**:
+   - Payment processing - Fire-and-forget with logging
+   - Notification sending - Fire-and-forget with logging
+   - Non-blocking operations that don't affect booking creation response
+
 ## 🛠️ Technologies Used
 
 - **Backend**: Spring Boot 3.5.8, Spring Cloud 2024.0.0
